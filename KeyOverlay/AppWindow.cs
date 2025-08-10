@@ -16,7 +16,6 @@ namespace KeyOverlay
         private readonly List<Key> _keyList = new();
         private readonly List<RectangleShape> _squareList;
         private readonly float _barSpeed;
-        private readonly float _ratioX;
         private readonly float _ratioY;
         private readonly int _outlineThickness;
         private readonly Color _backgroundColor;
@@ -29,8 +28,8 @@ namespace KeyOverlay
         private readonly bool _counter;
         private readonly List<Drawable> _staticDrawables = new();
         private readonly List<Text> _keyText = new();
-        private readonly uint _maxFPS;
-        private Clock _clock = new();
+        private readonly uint _maxFps;
+        private readonly Clock _clock = new();
 
 
         public AppWindow(string configFileName)
@@ -38,11 +37,11 @@ namespace KeyOverlay
             var config = ReadConfig(configFileName);
             var windowWidth = config["windowWidth"];
             var windowHeight = config["windowHeight"];
-            _window = new RenderWindow(new VideoMode(uint.Parse(windowWidth!), uint.Parse(windowHeight!)),
-                "KeyOverlay", Styles.Default);
+            _window = new(new(uint.Parse(windowWidth!), uint.Parse(windowHeight!)),
+                "KeyOverlay", Styles.Titlebar | Styles.Close);
 
-            //calculate screen ratio relative to original program size for easy resizing
-            _ratioX = float.Parse(windowWidth) / 480f;
+            // Calculate screen ratio relative to original program size for easy resizing
+            //var ratioX = float.Parse(windowWidth) / 480f;
             _ratioY = float.Parse(windowHeight) / 960f;
 
             _barSpeed = float.Parse(config["barSpeed"], CultureInfo.InvariantCulture);
@@ -50,42 +49,43 @@ namespace KeyOverlay
             _backgroundColor = CreateItems.CreateColor(config["backgroundColor"]);
             _keyBackgroundColor = CreateItems.CreateColor(config["keyColor"]);
             _barColor = CreateItems.CreateColor(config["barColor"]);
-            _maxFPS = uint.Parse(config["maxFPS"]);
+            _maxFps = uint.Parse(config["maxFPS"]);
 
-            //get background image if in config
+            // Get background image if in config
             if (config["backgroundImage"] != "")
-                _background = new Sprite(new Texture(
+                _background = new(new Texture(
                     Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "Resources",
                         config["backgroundImage"]))));
 
-            //create keys which will be used to create the squares and text
+            // Create keys which will be used to create the squares and text
             var keyAmount = int.Parse(config["keyAmount"]);
             for (var i = 1; i <= keyAmount; i++)
                 try
                 {
                     var key = new Key(config[$"key" + i]);
                     if (config.ContainsKey($"displayKey" + i))
-                        if (config[$"displayKey" + i] != "")
+                        if (config[$"displayKey" + i].Length > 0)
                             key.KeyLetter = config[$"displayKey" + i];
                     _keyList.Add(key);
                 }
                 catch (InvalidOperationException e)
                 {
-                    //invalid key
+                    // Invalid key
                     Console.WriteLine(e.Message);
                     using var sw = new StreamWriter("keyErrorMessage.txt");
                     sw.WriteLine(e.Message);
                 }
 
-            //create squares and add them to _staticDrawables list
+            // Create squares and add them to _staticDrawables list
             var outlineColor = CreateItems.CreateColor(config["borderColor"]);
             var keySize = int.Parse(config["keySize"]);
             var margin = int.Parse(config["margin"]);
-            _squareList = CreateItems.CreateKeys(keyAmount, _outlineThickness, keySize, _ratioX, _ratioY, margin,
+            _squareList = CreateItems.CreateKeys(keyAmount, _outlineThickness, keySize, _ratioY, margin,
                 _window, _keyBackgroundColor, outlineColor);
-            foreach (var square in _squareList) _staticDrawables.Add(square);
+            foreach (var square in _squareList)
+                _staticDrawables.Add(square);
 
-            //create text and add it ti _staticDrawables list
+            // Create text and add it ti _staticDrawables list
             _fontColor = CreateItems.CreateColor(config["fontColor"]);
             _pressFontColor = CreateItems.CreateColor(config["pressFontColor"]);
             for (var i = 0; i < keyAmount; i++)
@@ -96,9 +96,9 @@ namespace KeyOverlay
                 _staticDrawables.Add(text);
             }
 
-            if (config["fading"] == "yes")
+            if (config["fading"].ToLowerInvariant().Contains("y"))
                 _fading = true;
-            if (config["keyCounter"] == "yes")
+            if (config["keyCounter"].ToLowerInvariant().Contains("y"))
                 _counter = true;
         }
 
@@ -109,7 +109,8 @@ namespace KeyOverlay
             var file = configFileName == null ? 
                 File.ReadLines(Path.Combine(assemblyPath ?? "", "config.txt")).ToArray() :
                 File.ReadLines(Path.Combine(assemblyPath ?? "", configFileName)).ToArray();
-            foreach (var s in file) objectDict.Add(s.Split("=")[0], s.Split("=")[1]);
+            foreach (var s in file.Select(x => x.Split('=')))
+                objectDict.Add(s[0], s[1]);
             return objectDict;
         }
 
@@ -121,58 +122,69 @@ namespace KeyOverlay
         public void Run()
         {
             _window.Closed += OnClose;
-            _window.SetFramerateLimit(_maxFPS);
+            _window.SetFramerateLimit(_maxFps);
 
-            //Creating a sprite for the fading effect
-            var fadingList = Fading.GetBackgroundColorFadingTexture(_backgroundColor, _window.Size.X, _ratioY);
+            // Creating a sprite for the fading effect
             var fadingTexture = new RenderTexture(_window.Size.X, (uint)(255 * 2 * _ratioY));
             fadingTexture.Clear(Color.Transparent);
             if (_fading)
-                foreach (var sprite in fadingList)
+            {
+                var sprites = Fading.GetBackgroundColorFadingTexture(_backgroundColor, _window.Size.X, _ratioY);
+                foreach (var sprite in sprites)
                     fadingTexture.Draw(sprite);
+                foreach (var sprite in sprites)
+                    sprite.Dispose();
+            }
             fadingTexture.Display();
             var fadingSprite = new Sprite(fadingTexture.Texture);
-
+            //fadingTexture.Dispose();
 
             while (_window.IsOpen)
             {
                 _window.Clear(_backgroundColor);
                 _window.DispatchEvents();
-                //if no keys are being held fill the square with bg color
-                foreach (var square in _squareList) square.FillColor = _keyBackgroundColor;
-                //if a key is being held, change the key bg and increment hold variable of key
+                // If no keys are being held fill the square with bg color
+                foreach (var square in _squareList)
+                    square.FillColor = _keyBackgroundColor;
+                // If a key is being held, change the key bg and increment hold variable of key
                 foreach (var key in _keyList)
-                    if (key.isKey && Keyboard.IsKeyPressed(key.KeyboardKey) ||
-                        !key.isKey && Mouse.IsButtonPressed(key.MouseButton))
+                {
+                    var index = _keyList.IndexOf(key);
+                    if (key.IsKey && Keyboard.IsKeyPressed(key.KeyboardKey) ||
+                        !key.IsKey && Mouse.IsButtonPressed(key.MouseButton))
                     {
                         key.Hold++;
-                        if(_keyText.ElementAt(_keyList.IndexOf(key)).FillColor != _pressFontColor)
-                            _keyText.ElementAt(_keyList.IndexOf(key)).FillColor = _pressFontColor;
-                        _squareList.ElementAt(_keyList.IndexOf(key)).FillColor = _barColor;
+                        if(_keyText[index].FillColor != _pressFontColor)
+                            _keyText[index].FillColor = _pressFontColor;
+                        _squareList[index].FillColor = _barColor;
                     }
                     else
                     {
-                        if (_keyText.ElementAt(_keyList.IndexOf(key)).FillColor != _fontColor)
-                            _keyText.ElementAt(_keyList.IndexOf(key)).FillColor = _fontColor;
+                        if (_keyText[index].FillColor != _fontColor)
+                            _keyText[index].FillColor = _fontColor;
                         key.Hold = 0;
                     }
+                }
 
                 MoveBars(_keyList, _squareList);
 
-                //draw bg from image if not null
-
-                if (_background is not null)
+                if (_background != null)
                     _window.Draw(_background);
-                foreach (var staticDrawable in _staticDrawables) _window.Draw(staticDrawable);
+                foreach (var staticDrawable in _staticDrawables)
+                    _window.Draw(staticDrawable);
 
                 foreach (var key in _keyList)
                 {
                     if (_counter)
                     {
-                        var text = CreateItems.CreateText(Convert.ToString(key.Counter),
-                            _squareList.ElementAt(_keyList.IndexOf(key)),
-                            _fontColor, true);
-                        _window.Draw(text);
+                        var sqr = _squareList[_keyList.IndexOf(key)];
+                        key.CounterText.FillColor = _fontColor;
+                        key.CounterText.CharacterSize = (uint)(50 * sqr.Size.X / 140);
+                        key.CounterText.Origin = new(key.CounterText.GetLocalBounds().Width / 2f, sqr.Size.X / 140f);
+                        var sqrBounds = sqr.GetGlobalBounds();
+                        key.CounterText.Position = new(sqrBounds.Left + sqr.OutlineThickness + sqr.Size.X / 2f, sqrBounds.Top + sqr.OutlineThickness + sqr.Size.Y + 6);
+                        
+                        _window.Draw(key.CounterText);
                     }
 
                     foreach (var bar in key.BarList)
@@ -180,18 +192,16 @@ namespace KeyOverlay
                 }
 
                 _window.Draw(fadingSprite);
-
                 _window.Display();
             }
         }
 
         /// <summary>
-        /// if a key is a new input create a new bar, if it is being held stretch it and move all bars up
+        /// If a key is a new input create a new bar, if it is being held stretch it and move all bars up
         /// </summary>
         private void MoveBars(List<Key> keyList, List<RectangleShape> squareList)
         {
             var moveDist = _clock.Restart().AsSeconds() * _barSpeed;
-
             foreach (var key in keyList)
             {
                 if (key.Hold == 1)
@@ -200,17 +210,21 @@ namespace KeyOverlay
                         moveDist);
                     key.BarList.Add(rect);
                     key.Counter++;
+                    key.CounterText.DisplayedString = key.Counter.ToString();
                 }
                 else if (key.Hold > 1)
                 {
                     var rect = key.BarList.Last();
-                    rect.Size = new Vector2f(rect.Size.X, rect.Size.Y + moveDist);
+                    rect.Size = new(rect.Size.X, rect.Size.Y + moveDist);
                 }
 
                 foreach (var rect in key.BarList)
-                    rect.Position = new Vector2f(rect.Position.X, rect.Position.Y - moveDist);
+                    rect.Position = new(rect.Position.X, rect.Position.Y - moveDist);
                 if (key.BarList.Count > 0 && key.BarList.First().Position.Y + key.BarList.First().Size.Y < 0)
+                {
+                    key.BarList[0].Dispose();
                     key.BarList.RemoveAt(0);
+                }
             }
         }
     }

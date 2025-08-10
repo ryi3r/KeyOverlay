@@ -4,14 +4,14 @@ using System.Linq;
 
 namespace KeyOverlay
 {
-    internal class Program
+    static class Program
     {
         private static void Main(string[] args)
         {
             AppWindow window;
             try
             {
-                window = new AppWindow(args.FirstOrDefault());
+                window = new(args.FirstOrDefault());
             }
             catch (Exception e)
             {
