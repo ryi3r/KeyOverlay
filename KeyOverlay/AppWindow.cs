@@ -209,6 +209,9 @@ namespace KeyOverlay
             var moveDist = _clock.Restart().AsSeconds() * _barSpeed;
             foreach (var key in keyList)
             {
+                foreach (var rect in key.BarList)
+                    rect.Position += new Vector2f(0, _upScroll ? moveDist : -moveDist);
+                
                 switch (key.Hold)
                 {
                     case 1:
@@ -231,9 +234,7 @@ namespace KeyOverlay
                         }
                         break;
                 }
-
-                foreach (var rect in key.BarList)
-                    rect.Position += new Vector2f(0, _upScroll ? moveDist : -moveDist);
+                
                 if (key.BarList.Count <= 0)
                     continue;
                 var k = _upScroll ? key.BarList.Last() : key.BarList.First();
