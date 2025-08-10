@@ -219,7 +219,7 @@ namespace KeyOverlay
                             key.Counter++;
                             key.CounterText.DisplayedString = key.Counter.ToString();
                             if (_upScroll)
-                                rect.Position += new Vector2f(0, sqr.Size.Y + _outlineThickness + 2);
+                                rect.Position += new Vector2f(0, sqr.Size.Y + _outlineThickness);
                         }
                         break;
                     case > 1:
