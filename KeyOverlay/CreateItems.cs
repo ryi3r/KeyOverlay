@@ -36,7 +36,7 @@ namespace KeyOverlay
                 square.OutlineColor = outlineColor;
                 square.OutlineThickness = outlineThickness;
                 square.Origin = new(0, size);
-                square.Position = new(margin +outlineThickness + (width + spacing ) * i, yPos); 
+                square.Position = new(margin + outlineThickness + (width + spacing) * i, yPos); 
                 keyList.Add(square);
             }
             return keyList;

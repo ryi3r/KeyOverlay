@@ -24,3 +24,4 @@ fontColor= 255,255,255,255
 pressFontColor= 255,255,255,255
 backgroundImage=
 maxFPS=180
+upScroll=yes

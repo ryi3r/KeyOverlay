@@ -12,26 +12,26 @@ namespace KeyOverlay
 {
     public class AppWindow
     {
-        private readonly RenderWindow _window;
-        private readonly List<Key> _keyList = new();
-        private readonly List<RectangleShape> _squareList;
-        private readonly float _barSpeed;
-        private readonly float _ratioY;
-        private readonly int _outlineThickness;
-        private readonly Color _backgroundColor;
-        private readonly Color _keyBackgroundColor;
-        private readonly Color _barColor;
-        private readonly Color _fontColor;
-        private readonly Color _pressFontColor;
-        private readonly Sprite _background;
-        private readonly bool _fading;
-        private readonly bool _counter;
-        private readonly List<Drawable> _staticDrawables = new();
-        private readonly List<Text> _keyText = new();
-        private readonly uint _maxFps;
-        private readonly Clock _clock = new();
-
-
+        readonly RenderWindow _window;
+        readonly List<Key> _keyList = [];
+        readonly List<RectangleShape> _squareList;
+        readonly float _barSpeed;
+        readonly float _ratioY;
+        readonly int _outlineThickness;
+        readonly Color _backgroundColor;
+        readonly Color _keyBackgroundColor;
+        readonly Color _barColor;
+        readonly Color _fontColor;
+        readonly Color _pressFontColor;
+        readonly Sprite _background;
+        readonly bool _fading;
+        readonly bool _counter;
+        readonly List<Drawable> _staticDrawables = [];
+        readonly List<Text> _keyText = [];
+        readonly uint _maxFps;
+        readonly Clock _clock = new();
+        readonly bool _upScroll;
+        
         public AppWindow(string configFileName)
         {
             var config = ReadConfig(configFileName);
@@ -50,6 +50,7 @@ namespace KeyOverlay
             _keyBackgroundColor = CreateItems.CreateColor(config["keyColor"]);
             _barColor = CreateItems.CreateColor(config["barColor"]);
             _maxFps = uint.Parse(config["maxFPS"]);
+            _upScroll = config["upScroll"].ToLowerInvariant().Contains("y");
 
             // Get background image if in config
             if (config["backgroundImage"] != "")
@@ -83,23 +84,24 @@ namespace KeyOverlay
             _squareList = CreateItems.CreateKeys(keyAmount, _outlineThickness, keySize, _ratioY, margin,
                 _window, _keyBackgroundColor, outlineColor);
             foreach (var square in _squareList)
+            {
+                if (_upScroll)
+                    square.Position = square.Position with { Y = 100f };
                 _staticDrawables.Add(square);
+            }
 
             // Create text and add it ti _staticDrawables list
             _fontColor = CreateItems.CreateColor(config["fontColor"]);
             _pressFontColor = CreateItems.CreateColor(config["pressFontColor"]);
             for (var i = 0; i < keyAmount; i++)
             {
-                var text = CreateItems.CreateText(_keyList.ElementAt(i).KeyLetter, _squareList.ElementAt(i),
-                    _fontColor, false);
+                var text = CreateItems.CreateText(_keyList[i].KeyLetter, _squareList[i], _fontColor, false);
                 _keyText.Add(text);
                 _staticDrawables.Add(text);
             }
-
-            if (config["fading"].ToLowerInvariant().Contains("y"))
-                _fading = true;
-            if (config["keyCounter"].ToLowerInvariant().Contains("y"))
-                _counter = true;
+            
+            _fading = config["fading"].ToLowerInvariant().Contains("y");
+            _counter = config["keyCounter"].ToLowerInvariant().Contains("y");
         }
 
         private Dictionary<string, string> ReadConfig(string configFileName)
@@ -125,11 +127,11 @@ namespace KeyOverlay
             _window.SetFramerateLimit(_maxFps);
 
             // Creating a sprite for the fading effect
-            var fadingTexture = new RenderTexture(_window.Size.X, (uint)(255 * 2 * _ratioY));
+            var fadingTexture = new RenderTexture(_window.Size.X, (uint)(255f * _ratioY) * 2);
             fadingTexture.Clear(Color.Transparent);
             if (_fading)
             {
-                var sprites = Fading.GetBackgroundColorFadingTexture(_backgroundColor, _window.Size.X, _ratioY);
+                var sprites = Fading.GetBackgroundColorFadingTexture(_backgroundColor, _window.Size.X, _ratioY, _upScroll);
                 foreach (var sprite in sprites)
                     fadingTexture.Draw(sprite);
                 foreach (var sprite in sprites)
@@ -137,6 +139,8 @@ namespace KeyOverlay
             }
             fadingTexture.Display();
             var fadingSprite = new Sprite(fadingTexture.Texture);
+            if (_upScroll)
+                fadingSprite.Position = new(0, _window.Size.Y - fadingTexture.Size.Y);
             //fadingTexture.Dispose();
 
             while (_window.IsOpen)
@@ -182,7 +186,8 @@ namespace KeyOverlay
                         key.CounterText.CharacterSize = (uint)(50 * sqr.Size.X / 140);
                         key.CounterText.Origin = new(key.CounterText.GetLocalBounds().Width / 2f, sqr.Size.X / 140f);
                         var sqrBounds = sqr.GetGlobalBounds();
-                        key.CounterText.Position = new(sqrBounds.Left + sqr.OutlineThickness + sqr.Size.X / 2f, sqrBounds.Top + sqr.OutlineThickness + sqr.Size.Y + 6);
+                        var x = sqrBounds.Left + sqr.OutlineThickness + sqr.Size.X / 2f;
+                        key.CounterText.Position = new(x, _upScroll ? sqrBounds.Top - sqr.OutlineThickness - 24 : sqrBounds.Top + sqr.OutlineThickness + sqr.Size.Y + 6); 
                         
                         _window.Draw(key.CounterText);
                     }
@@ -204,27 +209,38 @@ namespace KeyOverlay
             var moveDist = _clock.Restart().AsSeconds() * _barSpeed;
             foreach (var key in keyList)
             {
-                if (key.Hold == 1)
+                switch (key.Hold)
                 {
-                    var rect = CreateItems.CreateBar(squareList.ElementAt(keyList.IndexOf(key)), _outlineThickness,
-                        moveDist);
-                    key.BarList.Add(rect);
-                    key.Counter++;
-                    key.CounterText.DisplayedString = key.Counter.ToString();
-                }
-                else if (key.Hold > 1)
-                {
-                    var rect = key.BarList.Last();
-                    rect.Size = new(rect.Size.X, rect.Size.Y + moveDist);
+                    case 1:
+                        {
+                            var sqr = squareList[keyList.IndexOf(key)];
+                            var rect = CreateItems.CreateBar(sqr, _outlineThickness, moveDist);
+                            key.BarList.Add(rect);
+                            key.Counter++;
+                            key.CounterText.DisplayedString = key.Counter.ToString();
+                            if (_upScroll)
+                                rect.Position += new Vector2f(0, sqr.Size.Y + _outlineThickness + 2);
+                        }
+                        break;
+                    case > 1:
+                        {
+                            var rect = key.BarList.Last();
+                            rect.Size += new Vector2f(0, moveDist);
+                            if (_upScroll)
+                                rect.Position -= new Vector2f(0, moveDist);
+                        }
+                        break;
                 }
 
                 foreach (var rect in key.BarList)
-                    rect.Position = new(rect.Position.X, rect.Position.Y - moveDist);
-                if (key.BarList.Count > 0 && key.BarList.First().Position.Y + key.BarList.First().Size.Y < 0)
-                {
-                    key.BarList[0].Dispose();
-                    key.BarList.RemoveAt(0);
-                }
+                    rect.Position += new Vector2f(0, _upScroll ? moveDist : -moveDist);
+                if (key.BarList.Count <= 0)
+                    continue;
+                var k = _upScroll ? key.BarList.Last() : key.BarList.First();
+                if (!(_upScroll ? k.Position.Y > _window.Size.Y : k.Position.Y + k.Size.Y < 0))
+                    continue;
+                key.BarList.Remove(k);
+                k.Dispose();
             }
         }
     }

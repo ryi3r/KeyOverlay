@@ -1,21 +1,23 @@
 ﻿using System.Collections.Generic;
 using SFML.Graphics;
+using System;
 
 namespace KeyOverlay {
     public static class Fading
     {
-        public static List<Sprite> GetBackgroundColorFadingTexture(Color backgroundColor, uint windowWidth, float ratioY) {
+        public static List<Sprite> GetBackgroundColorFadingTexture(Color backgroundColor, uint windowWidth, float ratioY, bool upScroll)
+        {
+            if (ratioY < 0.5f)
+                return [];
             var sprites = new List<Sprite>();
-            var alpha = 255;
             var color = backgroundColor;
             for (var i = 0; i < 255; i++)
             {
-                Image img = ratioY >= 0.5f ? new(windowWidth, (uint)(2 * ratioY), color) : new Image(windowWidth, 1, color);
+                var img = new Image(windowWidth, (uint)Math.Max(1, ratioY), color);
                 var sprite = new Sprite(new Texture(img));
-                sprite.Position = new(0, img.Size.Y * i);
+                sprite.Position = new(0, img.Size.Y * (upScroll ? (uint)(255f * ratioY) * 2 - i : i));
                 sprites.Add(sprite);
-                alpha -= 1;
-                color.A = (byte)alpha;
+                color.A = (byte)(255 - i);
             }
 
             return sprites;
