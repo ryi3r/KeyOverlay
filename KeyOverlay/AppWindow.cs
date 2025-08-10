@@ -158,7 +158,6 @@ namespace KeyOverlay
             var fadingSprite = new Sprite(fadingTexture.Texture);
             if (_upScroll)
                 fadingSprite.Position = new(0, _window.Size.Y - fadingTexture.Size.Y);
-            //fadingTexture.Dispose();
 
             while (_window.IsOpen)
             {
@@ -227,6 +226,7 @@ namespace KeyOverlay
                 }
                 _window.Display();
             }
+            fadingTexture.Dispose();
         }
 
         /// <summary>
