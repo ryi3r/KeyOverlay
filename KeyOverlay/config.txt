@@ -25,3 +25,4 @@ pressFontColor= 255,255,255,255
 backgroundImage=
 maxFPS=180
 upScroll=yes
+bottomText=KPS: ${kps} MAX KPS: ${maxKps}

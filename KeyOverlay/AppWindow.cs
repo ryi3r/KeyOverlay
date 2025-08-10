@@ -31,17 +31,21 @@ namespace KeyOverlay
         readonly uint _maxFps;
         readonly Clock _clock = new();
         readonly bool _upScroll;
+        readonly string _bottomText;
+        readonly Text _bottomTextNode = new();
+        readonly Clock _kpsClock = new();
+        readonly Clock _kpsIdleClock = new();
+        uint _kpsPressed;
+        double _maxKps;
         
         public AppWindow(string configFileName)
         {
             var config = ReadConfig(configFileName);
             var windowWidth = config["windowWidth"];
             var windowHeight = config["windowHeight"];
-            _window = new(new(uint.Parse(windowWidth!), uint.Parse(windowHeight!)),
+            _window = new(new(uint.Parse(windowWidth), uint.Parse(windowHeight)),
                 "KeyOverlay", Styles.Titlebar | Styles.Close);
-
-            // Calculate screen ratio relative to original program size for easy resizing
-            //var ratioX = float.Parse(windowWidth) / 480f;
+            
             _ratioY = float.Parse(windowHeight) / 960f;
 
             _barSpeed = float.Parse(config["barSpeed"], CultureInfo.InvariantCulture);
@@ -50,23 +54,25 @@ namespace KeyOverlay
             _keyBackgroundColor = CreateItems.CreateColor(config["keyColor"]);
             _barColor = CreateItems.CreateColor(config["barColor"]);
             _maxFps = uint.Parse(config["maxFPS"]);
-            _upScroll = config["upScroll"].ToLowerInvariant().Contains("y");
+            _upScroll = config["upScroll"].ToLowerInvariant().Contains('y');
 
             // Get background image if in config
-            if (config["backgroundImage"] != "")
+            if (config["backgroundImage"].Length > 0)
+            {
                 _background = new(new Texture(
                     Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "Resources",
                         config["backgroundImage"]))));
+            }
 
             // Create keys which will be used to create the squares and text
             var keyAmount = int.Parse(config["keyAmount"]);
             for (var i = 1; i <= keyAmount; i++)
                 try
                 {
-                    var key = new Key(config[$"key" + i]);
-                    if (config.ContainsKey($"displayKey" + i))
-                        if (config[$"displayKey" + i].Length > 0)
-                            key.KeyLetter = config[$"displayKey" + i];
+                    var key = new Key(config[$"key{i}"]);
+                    if (config.ContainsKey($"displayKey{i}"))
+                        if (config[$"displayKey{i}"].Length > 0)
+                            key.KeyLetter = config[$"displayKey{i}"];
                     _keyList.Add(key);
                 }
                 catch (InvalidOperationException e)
@@ -86,7 +92,7 @@ namespace KeyOverlay
             foreach (var square in _squareList)
             {
                 if (_upScroll)
-                    square.Position = square.Position with { Y = 100f };
+                    square.Position = square.Position with { Y = 105f };
                 _staticDrawables.Add(square);
             }
 
@@ -100,19 +106,30 @@ namespace KeyOverlay
                 _staticDrawables.Add(text);
             }
             
-            _fading = config["fading"].ToLowerInvariant().Contains("y");
-            _counter = config["keyCounter"].ToLowerInvariant().Contains("y");
+            _fading = config["fading"].ToLowerInvariant().Contains('y');
+            _counter = config["keyCounter"].ToLowerInvariant().Contains('y');
+            _bottomText = config["bottomText"].Replace("\\n", "\n");
+            _bottomTextNode.DisplayedString = _bottomText;
+            _bottomTextNode.Font = CreateItems.Font;
+            _bottomTextNode.Style = Text.Styles.Bold;
+            _bottomTextNode.FillColor = Color.White;
         }
 
         private Dictionary<string, string> ReadConfig(string configFileName)
         {
-            string assemblyPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            var assemblyPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             var objectDict = new Dictionary<string, string>();
             var file = configFileName == null ? 
                 File.ReadLines(Path.Combine(assemblyPath ?? "", "config.txt")).ToArray() :
                 File.ReadLines(Path.Combine(assemblyPath ?? "", configFileName)).ToArray();
-            foreach (var s in file.Select(x => x.Split('=')))
-                objectDict.Add(s[0], s[1]);
+            foreach (var s in file.Select(x =>
+            {
+                var i = x.IndexOf('=');
+                return (x[..i], x[(i + 1)..]);
+            }))
+            {
+                objectDict.Add(s.Item1, s.Item2);
+            }
             return objectDict;
         }
 
@@ -127,7 +144,7 @@ namespace KeyOverlay
             _window.SetFramerateLimit(_maxFps);
 
             // Creating a sprite for the fading effect
-            var fadingTexture = new RenderTexture(_window.Size.X, (uint)(255f * _ratioY) * 2);
+            var fadingTexture = new RenderTexture(_window.Size.X, (uint)(255f * 2f * _ratioY));
             fadingTexture.Clear(Color.Transparent);
             if (_fading)
             {
@@ -154,18 +171,15 @@ namespace KeyOverlay
                 foreach (var key in _keyList)
                 {
                     var index = _keyList.IndexOf(key);
-                    if (key.IsKey && Keyboard.IsKeyPressed(key.KeyboardKey) ||
-                        !key.IsKey && Mouse.IsButtonPressed(key.MouseButton))
+                    if ((key.IsKey && Keyboard.IsKeyPressed(key.KeyboardKey)) || (!key.IsKey && Mouse.IsButtonPressed(key.MouseButton)))
                     {
                         key.Hold++;
-                        if(_keyText[index].FillColor != _pressFontColor)
-                            _keyText[index].FillColor = _pressFontColor;
+                        _keyText[index].FillColor = _pressFontColor;
                         _squareList[index].FillColor = _barColor;
                     }
                     else
                     {
-                        if (_keyText[index].FillColor != _fontColor)
-                            _keyText[index].FillColor = _fontColor;
+                        _keyText[index].FillColor = _fontColor;
                         key.Hold = 0;
                     }
                 }
@@ -183,11 +197,11 @@ namespace KeyOverlay
                     {
                         var sqr = _squareList[_keyList.IndexOf(key)];
                         key.CounterText.FillColor = _fontColor;
-                        key.CounterText.CharacterSize = (uint)(50 * sqr.Size.X / 140);
+                        key.CounterText.CharacterSize = (uint)(50f * sqr.Size.X / 140f);
                         key.CounterText.Origin = new(key.CounterText.GetLocalBounds().Width / 2f, sqr.Size.X / 140f);
                         var sqrBounds = sqr.GetGlobalBounds();
                         var x = sqrBounds.Left + sqr.OutlineThickness + sqr.Size.X / 2f;
-                        key.CounterText.Position = new(x, _upScroll ? sqrBounds.Top - sqr.OutlineThickness - 24 : sqrBounds.Top + sqr.OutlineThickness + sqr.Size.Y + 6); 
+                        key.CounterText.Position = new(x, _upScroll ? sqrBounds.Top - sqr.OutlineThickness - 26 : sqrBounds.Top + sqr.OutlineThickness + sqr.Size.Y + 6); 
                         
                         _window.Draw(key.CounterText);
                     }
@@ -197,6 +211,20 @@ namespace KeyOverlay
                 }
 
                 _window.Draw(fadingSprite);
+                {
+                    if (_bottomText.Contains("${"))
+                    {
+                        var kps = _kpsPressed / (double)_kpsClock.ElapsedTime.AsSeconds();
+                        _maxKps = Math.Max(_maxKps, kps);
+                        _bottomTextNode.DisplayedString = _bottomText
+                            .Replace("${kps}", kps.ToString("00.00", CultureInfo.InvariantCulture))
+                            .Replace("${maxKps}", _maxKps.ToString("00.00", CultureInfo.InvariantCulture))
+                            .Replace("${bpm}", (kps * 60).ToString("00.00", CultureInfo.InvariantCulture))
+                            .Replace("${maxBpm}", (_maxKps * 60).ToString("00.00", CultureInfo.InvariantCulture));
+                    }
+                    _bottomTextNode.Position = new(5, _window.Size.Y - _bottomTextNode.GetLocalBounds().Height - 16);
+                    _window.Draw(_bottomTextNode);
+                }
                 _window.Display();
             }
         }
@@ -207,6 +235,7 @@ namespace KeyOverlay
         private void MoveBars(List<Key> keyList, List<RectangleShape> squareList)
         {
             var moveDist = _clock.Restart().AsSeconds() * _barSpeed;
+            var idle = 0;
             foreach (var key in keyList)
             {
                 foreach (var rect in key.BarList)
@@ -223,6 +252,8 @@ namespace KeyOverlay
                             key.CounterText.DisplayedString = key.Counter.ToString();
                             if (_upScroll)
                                 rect.Position += new Vector2f(0, sqr.Size.Y + _outlineThickness);
+                            _kpsPressed++;
+                            _kpsIdleClock.Restart();
                         }
                         break;
                     case > 1:
@@ -233,15 +264,23 @@ namespace KeyOverlay
                                 rect.Position -= new Vector2f(0, moveDist);
                         }
                         break;
+                    default:
+                        idle++;
+                        break;
                 }
                 
                 if (key.BarList.Count <= 0)
                     continue;
                 var k = _upScroll ? key.BarList.Last() : key.BarList.First();
-                if (!(_upScroll ? k.Position.Y > _window.Size.Y : k.Position.Y + k.Size.Y < 0))
+                if (_upScroll ? k.Position.Y <= _window.Size.Y : k.Position.Y + k.Size.Y >= 0)
                     continue;
                 key.BarList.Remove(k);
                 k.Dispose();
+            }
+            if (idle == keyList.Count && _kpsIdleClock.ElapsedTime.AsSeconds() > 5f)
+            {
+                _kpsPressed = 0;
+                _kpsClock.Restart();
             }
         }
     }
