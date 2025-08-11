@@ -214,7 +214,8 @@ namespace KeyOverlay
                     if (_bottomText.Contains("${"))
                     {
                         var kps = _kpsPressed / (double)_kpsClock.ElapsedTime.AsSeconds();
-                        _maxKps = Math.Max(_maxKps, kps);
+                        if (_kpsClock.ElapsedTime.AsSeconds() > 0.1)
+                            _maxKps = Math.Max(_maxKps, kps);
                         _bottomTextNode.DisplayedString = _bottomText
                             .Replace("${kps}", kps.ToString("00.00", CultureInfo.InvariantCulture))
                             .Replace("${maxKps}", _maxKps.ToString("00.00", CultureInfo.InvariantCulture))
