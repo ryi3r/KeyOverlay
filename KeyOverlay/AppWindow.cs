@@ -36,7 +36,7 @@ namespace KeyOverlay
         readonly Clock _kpsClock = new();
         readonly Clock _kpsIdleClock = new();
         // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable
-        readonly Dictionary<string, string> _config; 
+        readonly Dictionary<string, string> _config;
         uint _kpsPressed;
         double _maxKps;
         
@@ -246,7 +246,7 @@ namespace KeyOverlay
                             .Replace("${bpm}", (kps * 60).ToString("00.00", CultureInfo.InvariantCulture))
                             .Replace("${maxBpm}", (_maxKps * 60).ToString("00.00", CultureInfo.InvariantCulture));
                     }
-                    _bottomTextNode.Position = new(5, _window.Size.Y - _bottomTextNode.GetLocalBounds().Height - 16);
+                    _bottomTextNode.Position = new(5, _upScroll ? _window.Size.Y - _bottomTextNode.GetLocalBounds().Height - 16 : -5);
                     _window.Draw(_bottomTextNode);
                 }
                 _window.Display();
