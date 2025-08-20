@@ -20,23 +20,18 @@ namespace KeyOverlay
         {
             CounterText = CreateItems.CreateText("0", new(), Color.White, true);
             KeyLetter = key;
-            if (!Enum.TryParse(key, out KeyboardKey))
+            if (!Enum.TryParse(key, true, out KeyboardKey))
             {
                 if (KeyLetter[0] == 'm')
-                {
                     KeyLetter = KeyLetter.Remove(0, 1);
-                }
-                if (key != null && Enum.TryParse(key.Substring(1), out MouseButton))
+                if (key != null && Enum.TryParse(key[1..], true, out MouseButton))
                 //if(!Enum.TryParse(key, out MouseButton))
                 {
                     //KeyLetter = key.Substring(1);
                     IsKey = false;
                 }
                 else
-                {
-                    string exceptName = "Invalid key " + key;
-                    throw new InvalidOperationException(exceptName);
-                }
+                    throw new InvalidOperationException($"Invalid key {key}");
 
             }
         }

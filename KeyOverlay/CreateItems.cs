@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using SFML.Graphics;
 using SFML.System;
+using System;
 
 namespace KeyOverlay
 {
@@ -26,7 +27,7 @@ namespace KeyOverlay
             var yPos = 900 * ratioY;
             var width = size + outlineThickness * 2;
             var keyList = new List<RectangleShape>();
-            var spacing = (window.Size.X - margin * 2 - width * keyAmount) / (keyAmount - 1);
+            var spacing = (window.Size.X - margin * 2 - width * (keyAmount > 1 ? keyAmount : 5)) / (keyAmount > 1 ? keyAmount - 1 : 5);
             for (var i = 0; i < keyAmount; i++)
             {
                 var square = new RectangleShape(new Vector2f(size, size));
@@ -35,7 +36,7 @@ namespace KeyOverlay
                 square.OutlineColor = outlineColor;
                 square.OutlineThickness = outlineThickness;
                 square.Origin = new(0, size);
-                square.Position = new(margin + outlineThickness + (width + spacing) * i, yPos); 
+                square.Position = new(margin + outlineThickness + (width + spacing) * (keyAmount > 1 ? i : 2), yPos); 
                 keyList.Add(square);
             }
             return keyList;

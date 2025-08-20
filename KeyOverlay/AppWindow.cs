@@ -67,6 +67,7 @@ namespace KeyOverlay
             // Create keys which will be used to create the squares and text
             var keyAmount = int.Parse(config["keyAmount"]);
             for (var i = 1; i <= keyAmount; i++)
+            {
                 try
                 {
                     var key = new Key(config[$"key{i}"]);
@@ -82,6 +83,7 @@ namespace KeyOverlay
                     using var sw = new StreamWriter("keyErrorMessage.txt");
                     sw.WriteLine(e.Message);
                 }
+            }
 
             // Create squares and add them to _staticDrawables list
             var outlineColor = CreateItems.CreateColor(config["borderColor"]);
@@ -99,7 +101,7 @@ namespace KeyOverlay
             // Create text and add it ti _staticDrawables list
             _fontColor = CreateItems.CreateColor(config["fontColor"]);
             _pressFontColor = CreateItems.CreateColor(config["pressFontColor"]);
-            for (var i = 0; i < keyAmount; i++)
+            for (var i = 0; i < Math.Min(_keyList.Count, keyAmount); i++)
             {
                 var text = CreateItems.CreateText(_keyList[i].KeyLetter, _squareList[i], _fontColor, false);
                 _keyText.Add(text);
