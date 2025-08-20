@@ -35,45 +35,47 @@ namespace KeyOverlay
         readonly Text _bottomTextNode = new();
         readonly Clock _kpsClock = new();
         readonly Clock _kpsIdleClock = new();
+        // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable
+        readonly Dictionary<string, string> _config; 
         uint _kpsPressed;
         double _maxKps;
         
         public AppWindow(string configFileName)
         {
-            var config = ReadConfig(configFileName);
-            var windowWidth = config["windowWidth"];
-            var windowHeight = config["windowHeight"];
+            _config = ReadConfig(configFileName);
+            var windowWidth = _config["windowWidth"];
+            var windowHeight = _config["windowHeight"];
             _window = new(new(uint.Parse(windowWidth), uint.Parse(windowHeight)),
                 "KeyOverlay", Styles.Titlebar | Styles.Close);
             
             _ratioY = float.Parse(windowHeight) / 960f;
 
-            _barSpeed = float.Parse(config["barSpeed"], CultureInfo.InvariantCulture);
-            _outlineThickness = int.Parse(config["outlineThickness"]);
-            _backgroundColor = CreateItems.CreateColor(config["backgroundColor"]);
-            _keyBackgroundColor = CreateItems.CreateColor(config["keyColor"]);
-            _barColor = CreateItems.CreateColor(config["barColor"]);
-            _maxFps = uint.Parse(config["maxFPS"]);
-            _upScroll = config["upScroll"].ToLowerInvariant().Contains('y');
+            _barSpeed = float.Parse(_config["barSpeed"], CultureInfo.InvariantCulture);
+            _outlineThickness = int.Parse(_config["outlineThickness"]);
+            _backgroundColor = CreateItems.CreateColor(_config["backgroundColor"]);
+            _keyBackgroundColor = CreateItems.CreateColor(_config["keyColor"]);
+            _barColor = CreateItems.CreateColor(_config["barColor"]);
+            _maxFps = uint.Parse(_config["maxFPS"]);
+            _upScroll = _config["upScroll"].ToLowerInvariant().Contains('y');
 
             // Get background image if in config
-            if (config["backgroundImage"].Length > 0)
+            if (_config["backgroundImage"].Length > 0)
             {
                 _background = new(new Texture(
                     Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "Resources",
-                        config["backgroundImage"]))));
+                        _config["backgroundImage"]))));
             }
 
             // Create keys which will be used to create the squares and text
-            var keyAmount = int.Parse(config["keyAmount"]);
+            var keyAmount = int.Parse(_config["keyAmount"]);
             for (var i = 1; i <= keyAmount; i++)
             {
                 try
                 {
-                    var key = new Key(config[$"key{i}"]);
-                    if (config.ContainsKey($"displayKey{i}"))
-                        if (config[$"displayKey{i}"].Length > 0)
-                            key.KeyLetter = config[$"displayKey{i}"];
+                    var key = new Key(_config[$"key{i}"]);
+                    if (_config.ContainsKey($"displayKey{i}"))
+                        if (_config[$"displayKey{i}"].Length > 0)
+                            key.KeyLetter = _config[$"displayKey{i}"];
                     _keyList.Add(key);
                 }
                 catch (InvalidOperationException e)
@@ -86,31 +88,27 @@ namespace KeyOverlay
             }
 
             // Create squares and add them to _staticDrawables list
-            var outlineColor = CreateItems.CreateColor(config["borderColor"]);
-            var keySize = int.Parse(config["keySize"]);
-            var margin = int.Parse(config["margin"]);
-            _squareList = CreateItems.CreateKeys(keyAmount, _outlineThickness, keySize, _ratioY, margin,
+            var outlineColor = CreateItems.CreateColor(_config["borderColor"]);
+            var keySize = int.Parse(_config["keySize"]);
+            var margin = int.Parse(_config["margin"]);
+            _squareList = CreateItems.CreateKeys(keyAmount, _outlineThickness, keySize, _ratioY, _upScroll, margin,
                 _window, _keyBackgroundColor, outlineColor);
             foreach (var square in _squareList)
-            {
-                if (_upScroll)
-                    square.Position = square.Position with { Y = 105f };
                 _staticDrawables.Add(square);
-            }
 
             // Create text and add it ti _staticDrawables list
-            _fontColor = CreateItems.CreateColor(config["fontColor"]);
-            _pressFontColor = CreateItems.CreateColor(config["pressFontColor"]);
-            for (var i = 0; i < Math.Min(_keyList.Count, keyAmount); i++)
+            _fontColor = CreateItems.CreateColor(_config["fontColor"]);
+            _pressFontColor = CreateItems.CreateColor(_config["pressFontColor"]);
+            for (var i = 0; i < _keyList.Count; i++)
             {
                 var text = CreateItems.CreateText(_keyList[i].KeyLetter, _squareList[i], _fontColor, false);
                 _keyText.Add(text);
                 _staticDrawables.Add(text);
             }
             
-            _fading = config["fading"].ToLowerInvariant().Contains('y');
-            _counter = config["keyCounter"].ToLowerInvariant().Contains('y');
-            _bottomText = config["bottomText"].Replace("\\n", "\n");
+            _fading = _config["fading"].ToLowerInvariant().Contains('y');
+            _counter = _config["keyCounter"].ToLowerInvariant().Contains('y');
+            _bottomText = _config["bottomText"].Replace("\\n", "\n");
             _bottomTextNode.DisplayedString = _bottomText;
             _bottomTextNode.Font = CreateItems.Font;
             _bottomTextNode.Style = Text.Styles.Bold;
@@ -163,6 +161,30 @@ namespace KeyOverlay
 
             while (_window.IsOpen)
             {
+                /*#if DEBUG
+                {
+                    var n = CreateItems.CreateKeys(_squareList.Count, _outlineThickness, int.Parse(_config["keySize"]), _ratioY, _upScroll, int.Parse(_config["margin"]),
+                        _window, _keyBackgroundColor, CreateItems.CreateColor(_config["borderColor"]));
+                    _staticDrawables.Clear();
+                    foreach (var s in _squareList)
+                        s.Dispose();
+                    foreach (var s in _keyText)
+                        s.Dispose();
+                    _squareList.Clear();
+                    _keyText.Clear();
+                    foreach (var s in n)
+                    {
+                        _staticDrawables.Add(s);
+                        _squareList.Add(s);
+                    }
+                    for (var i = 0; i < _keyList.Count; i++)
+                    {
+                        var nt = CreateItems.CreateText(_keyList[i].KeyLetter, _squareList[i], _fontColor, false);
+                        _staticDrawables.Add(nt);
+                        _keyText.Add(nt);
+                    }
+                }
+                #endif*/
                 _window.Clear(_backgroundColor);
                 _window.DispatchEvents();
                 // If no keys are being held fill the square with bg color

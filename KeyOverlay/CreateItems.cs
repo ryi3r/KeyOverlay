@@ -22,12 +22,12 @@ namespace KeyOverlay
             return rect;
         }
 
-        public static List<RectangleShape> CreateKeys(int keyAmount, int outlineThickness, float size, float ratioY, int margin, RenderWindow window, Color backgroundColor, Color outlineColor)
+        public static List<RectangleShape> CreateKeys(int keyAmount, int outlineThickness, float size, float ratioY, bool upScroll, int margin, RenderWindow window, Color backgroundColor, Color outlineColor)
         {
-            var yPos = 900 * ratioY;
-            var width = size + outlineThickness * 2;
+            var yPos = upScroll ? 30 : 900 * ratioY;
+            //var width = size + outlineThickness * 2;
             var keyList = new List<RectangleShape>();
-            var spacing = (window.Size.X - margin * 2 - width * (keyAmount > 1 ? keyAmount : 5)) / (keyAmount > 1 ? keyAmount - 1 : 5);
+            //var spacing = (window.Size.X - margin * 2 - width * (keyAmount > 1 ? keyAmount : 5)) / (keyAmount > 1 ? keyAmount - 1 : 5);
             for (var i = 0; i < keyAmount; i++)
             {
                 var square = new RectangleShape(new Vector2f(size, size));
@@ -35,8 +35,9 @@ namespace KeyOverlay
                 square.FillColor = backgroundColor;
                 square.OutlineColor = outlineColor;
                 square.OutlineThickness = outlineThickness;
-                square.Origin = new(0, size);
-                square.Position = new(margin + outlineThickness + (width + spacing) * (keyAmount > 1 ? i : 2), yPos); 
+                square.Origin = new(0, upScroll ? 0 : size);
+                var spacing = (window.Size.X / 2f) - ((margin + size) * keyAmount / 2f) + ((margin + size) * i) + (margin / 2f);
+                square.Position = new(spacing, yPos); 
                 keyList.Add(square);
             }
             return keyList;
