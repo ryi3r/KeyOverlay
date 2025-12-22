@@ -1,5 +1,8 @@
 
 # KeyOverlay
+
+## Migrated to [Codeberg](https://codeberg.org/ryi3r/KeyOverlay)
+
  A simple key overlay for osu! streaming
  
  If you're interested in per key coloring and custom width for your keys please check out [Friedchiken-42's version](https://github.com/Friedchicken-42/KeyOverlay) better suited for mania.
