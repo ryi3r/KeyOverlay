@@ -1,7 +1,7 @@
 
 # KeyOverlay
 
-## Migrated to [Codeberg](https://codeberg.org/ryi3r/KeyOverlay)
+## Migrated to [Codefloe](https://codefloe.com/ryi3r/KeyOverlay.git)
 
  A simple key overlay for osu! streaming
  
