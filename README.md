@@ -1,7 +1,7 @@
 
 # KeyOverlay
 
-## Migrated to [Codefloe](https://codefloe.com/ryi3r/KeyOverlay.git)
+## Migrated to [Self-Hosted Forgejo](https://git.crystal-server.co/ryi3r/KeyOverlay)
 
  A simple key overlay for osu! streaming
  
